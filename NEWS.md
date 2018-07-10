@@ -2,7 +2,7 @@
 
 Significant changes to main POSAC function to avoid problems with non-convergence.
 
-POSAC function now returns a matrix of monotonicity coefficients of origibnal variables with the derived features.
+POSAC function now returns a matrix of monotonicity coefficients of original variables with the derived features.
 
 movecheck function updated so that it runs far more quickly.
 
