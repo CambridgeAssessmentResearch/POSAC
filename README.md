@@ -17,13 +17,7 @@ don't be surprised if analysis fails to produce useful results.
 
 ## Installation
 
-This package can be installed using the devtools package using the commands below.
-
-library(devtools)
-
-install_github("CambridgeAssessmentResearch/POSAC")
-
-In order to run all of the examples provided with this package you will first need to install the packages ggplot2, foreach and hasseDiagram from CRAN, and the package Rgrpahviz from Bioconductor. This can be done with the commands below.
+In order to run all of the examples in this package you will first need to install the packages ggplot2 and hasseDiagram from CRAN, and the package Rgrpahviz from Bioconductor. This can be done with the commands below.
 
 source("https://bioconductor.org/biocLite.R")
 

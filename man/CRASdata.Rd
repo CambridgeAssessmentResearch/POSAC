@@ -17,6 +17,6 @@
 CRASdata
 }
 \description{
-A data set of 32 patterns of CRAS demands of items from a Physics examinations.
+A data set of 32 patterns of CRAS demands of items from a Physics examination.
 }
 \keyword{datasets}

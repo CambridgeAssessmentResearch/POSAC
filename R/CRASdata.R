@@ -1,6 +1,6 @@
 #' A data set of CRAS demand patterns.
 #'
-#' A data set of 32 patterns of CRAS demands of items from a Physics examinations.
+#' A data set of 32 patterns of CRAS demands of items from a Physics examination.
 #'
 #' @format A data frame with 32 rows and 5 variables:
 #' \describe{

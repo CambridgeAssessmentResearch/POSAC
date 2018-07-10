@@ -14,6 +14,7 @@
 #'   \item{patmat}{The pattern matrix used in analysis to begin with.}
 #'   \item{freqs}{The frequency with which in pattern occurs.}
 #'   \item{tidyframe}{A single data frame containing the structuples(patterns), frequencies, X, Y, rescaled X and Y to be between a 0 and 100, J (=rescaled X+rescaled Y)and L(=100+rescaled X-rescaled Y).}
+#'   \item{mumatrix}{Matrix of monotonicity coefficients between each of the original variables and the resulting rescaled X, Y, J and L.}
 #' }
 #'
 #' @keywords Scalogram
@@ -44,6 +45,18 @@ rescX=round(100*(X-min(X))/(max(X)-min(X)))
 rescY=round(100*(Y-min(Y))/(max(Y)-min(Y)))
 tidyframe=data.frame(Structuple=pattern,freqs=freqs,X=X,Y=Y,rescX=rescX,rescY=rescY,J=rescX+rescY,L=100+rescX-rescY)
 
-return(list(Criteria=crits,X=X,Y=Y,Patterns=pattern,patmat=patmat,freqs=freqs,tidyframe=tidyframe))}
+#mu correlation matrix between original patterns and discovered dimensions
+mumatrix=matrix(mapply(function(i,j) tryCatch(mu(patmat[,i],tidyframe[,j]),error=function(e) NA)
+	,rep(1:ncol(patmat),4)
+	,rep(5:8,each=ncol(patmat))),nrow=ncol(patmat))
+rownames(mumatrix)=colnames(patmat)
+colnames(mumatrix)=names(tidyframe)[5:8]
+mumatrix
+
+return(list(Criteria = crits, X = X, Y = Y, Patterns = pattern
+		,patmat = patmat, freqs = freqs
+		,tidyframe = tidyframe,mumatrix=mumatrix))
+
+}
 
 

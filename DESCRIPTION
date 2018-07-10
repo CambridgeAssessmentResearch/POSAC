@@ -1,6 +1,6 @@
 Package: POSAC
 Title: Partial order scalogram analysis
-Version: 1.0.0
+Version: 1.1.0
 Authors@R: person("Tom", "Benton", email = "benton.t@cambridgeassessment.org.uk", role = c("aut", "cre"))
 Description: This package performs analysis associated with partial order
     scalogram analysis (POSAC).

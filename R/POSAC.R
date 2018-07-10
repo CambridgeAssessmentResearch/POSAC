@@ -4,6 +4,7 @@
 #'
 #' @param patmat A matrix of patterns of values across. Each row of the matrix should represents a distinct pattern with no duplicates. The columns are the variables defining the patterns.
 #' @param freqs A vector of frequencies of each pattern. This should have the same length as nrow(patmat). 
+#' @param greedy Logical value denoting whether optimisation method should finish with a greedy search through all possible movements of each point in order to improve the number of pairs of patterns that are correctly positioned. Setting this to true will make the process somewhat slower. The default value is FALSE. 
 #'
 #' @return The function returns a list with the following elements:
 #' \describe{
@@ -14,6 +15,7 @@
 #'   \item{patmat}{The pattern matrix used in analysis to begin with.}
 #'   \item{freqs}{The frequency with which in pattern occurs.}
 #'   \item{tidyframe}{A single data frame containing the structuples(patterns), frequencies, X, Y, rescaled X and Y to be between a 0 and 100, J (=rescaled X+rescaled Y)and L(=100+rescaled X-rescaled Y).}
+#'   \item{mumatrix}{Matrix of monotonicity coefficients between each of the original variables and the resulting rescaled X, Y, J and L.}
 #' }
 #'
 #' @keywords Scalogram
@@ -46,51 +48,124 @@
 #'           aes(x=X,y=Y,label=posac2$patmat$complex,col=as.factor(posac2$patmat$complex)))
 #' g2+geom_text()+geom_point()+theme_minimal()+labs(x="Facet analysis X",y="Facet analysis Y")+guides(col="none")
 
-POSAC=function(patmat,freqs){
-npat=dim(patmat)[1]
-#CREATE A MATRIX INDICATING WHETHER PAIRS ARE COMPARABLE OR INCOMPARABLE
-#(Gamma Squared)
-gam<-gamfunc(patmat)
-gam2<-gam^2
+POSAC=function(patmat,freqs,greedy=FALSE){
 
-#SET STARTING VALUES FOR X AND Y (AVERAGE RANKS AND VECTOR BASED ON ORDER OF DATA SET)
-X<-as.vector(rowMeans(apply(patmat,2, rank)))+0.00001*((1:npat)^2)/npat
-Y<-0.00001*(1:npat)
+pattern <- apply(patmat, 1, paste, collapse = "")
+npat = dim(patmat)[1]
+nvar = dim(patmat)[2]
+gam <- gamfunc(patmat)
 
-#iterate stages of optimisation until complete
-stop=0
-lastpccorrect=0
-while(stop==0){
-#first part of optimisation
-step1XY<-optim(c(X,Y)/100*max(c(X,Y)), fn=Ufunc, gr = dUfunc,gam2=gam2,Freq=freqs
-	,method = "L-BFGS-B",lower=-8,upper=8
-	,control=list(fnscale=-1,maxit=300,trace=1))
-sortedXY<-resortPOSAC2(step1XY$par,gam,patmat)
-X<-rank(sortedXY[1:npat])
-Y<-rank(sortedXY[(npat+1):(2*npat)])
+#sets of starting values
+startvals=list()
+#starting values 1 (all incomparable just based on order in the data)
+startvals[[1]]=list()
+startvals[[1]]$X=(1/npat)*rank(rep(0,npat),ties.method="first")
+startvals[[1]]$Y=(1/npat)*rank(rep(0,npat),ties.method="last")
+#starting values 2 (all comparable based on sum of all columns)
+startvals[[2]]=list()
+startvals[[2]]$X=(1/npat)*rank(rowSums(as.matrix(patmat)),ties.method="first")
+startvals[[2]]$Y=(1/npat)*rank(rowSums(as.matrix(patmat)),ties.method="last")
+#starting values 3 (add up first and second halves)
+startvals[[3]]=list()
+startvals[[3]]$X=(1/npat)*rank(rowSums(as.matrix(patmat[,1:(floor(nvar)/2)])),ties.method="first")
+startvals[[3]]$Y=(1/npat)*rank(rowSums(as.matrix(patmat[,-(1:(floor(nvar)/2))])),ties.method="last")
+#starting values 4 (add up odd and even halves)
+startvals[[4]]=list()
+startvals[[4]]$X=(1/npat)*rank(rowSums(as.matrix(patmat[,((1:nvar)%%2)==1])),ties.method="first")
+startvals[[4]]$Y=(1/npat)*rank(rowSums(as.matrix(patmat[,((1:nvar)%%2)==0])),ties.method="last")
 
-#break any ties (say incomparable)
-rand1=runif(npat,-0.01,0.01)
-X=X+rand1
-Y=Y-rand1
-X<-rank(X)
-Y<-rank(Y)
+bestX=startvals[[1]]$X
+bestY=startvals[[1]]$Y
+bestcrit=realcriteria(c(bestX, bestY), gam, Freq = freqs)$overall$pccorrect
 
-crit1=realcriteria(c(X,Y),gam,Freq=freqs)$overall$pccorrect
-if (crit1==lastpccorrect){stop=1}
-lastpccorrect=crit1}
+###function for differentiable version of realcriteria will base on tanh of differences
+dtanh=function(x){1-(tanh(x)^2)}
+CritDif=function(XY,gam,Freq){
+#XY=c(X,Y)
+#Freq=freqs
+npat=length(XY)/2
+X=XY[1:npat]
+Y=XY[-(1:npat)]
+XmX=matrix(X,ncol=1)%*%matrix(rep(1,npat),nrow=1)-matrix(rep(1,npat),ncol=1)%*%matrix(X,nrow=1)
+YmY=matrix(Y,ncol=1)%*%matrix(rep(1,npat),nrow=1)-matrix(rep(1,npat),ncol=1)%*%matrix(Y,nrow=1)
+gamest=(tanh(3*XmX)+tanh(3*YmY))/2
+FiFj <- Freq %*% t(Freq)
+sum(FiFj*((gamest-gam)^2))
+}
 
-#FINAL STATS
-crits=realcriteria(c(X,Y),gam,Freq=freqs)
-#PATTERNS
-pattern<-apply(patmat,1,paste,collapse="")
-#TIDY DATA FRAME
+#gradient function (subroutine)
+grCritDif=function(XY,gam,Freq){
+  npat=length(XY)/2
+  X=XY[1:npat]
+  Y=XY[-(1:npat)]
+  XmX=matrix(X,ncol=1)%*%matrix(rep(1,npat),nrow=1)-matrix(rep(1,npat),ncol=1)%*%matrix(X,nrow=1)
+  YmY=matrix(Y,ncol=1)%*%matrix(rep(1,npat),nrow=1)-matrix(rep(1,npat),ncol=1)%*%matrix(Y,nrow=1)
+  gamest=(tanh(3*XmX)+tanh(3*YmY))/2
+  dgamestX=(3*dtanh(3*XmX))/2
+  dgamestY=(3*dtanh(3*YmY))/2
+  FiFj <- Freq %*% t(Freq)
+  rowDifX=rowSums(2*FiFj*(gamest-gam)*dgamestX)
+  rowDifY=rowSums(2*FiFj*(gamest-gam)*dgamestY)
+  2*c(rowDifX,rowDifY)
+  }
+##
 
-rescX=round(100*(X-min(X))/(max(X)-min(X)))
-rescY=round(100*(Y-min(Y))/(max(Y)-min(Y)))
+#run through the four possible starting values and see which one leads to the best result
+for (sv in 1:4){
+X=startvals[[sv]]$X
+Y=startvals[[sv]]$Y
+step1XY <- optim(c(X, Y), fn = CritDif, 
+                   gr = grCritDif, gam = gam, Freq = freqs, method = "L-BFGS-B", 
+                   lower = -18, upper = 18, control = list(maxit = 1000, trace = 1))
+crit1 = realcriteria(c(step1XY$par[1:npat], step1XY$par[-(1:npat)])
+                        , gam, Freq = freqs)$overall$pccorrect
+if(crit1>bestcrit){
+	bestX=step1XY$par[1:npat]
+	bestY=step1XY$par[-(1:npat)]
+	bestcrit=crit1
+	}
+}
+X <- rank(bestX,ties.method="first")
+Y <- rank(bestY,ties.method="last")
 
-tidyframe=data.frame(Structuple=pattern,freqs=freqs,X=X,Y=Y,rescX=rescX,rescY=rescY,J=rescX+rescY,L=100+rescX-rescY)
+##GREEDY CONTINUATION
+if(greedy==TRUE){
+stop=FALSE
+XCURR=X
+YCURR=Y
+while(stop==FALSE){
+moves2=movecheck(XCURR,YCURR,patmat,freqs)
+print(moves2$BestMove$pccorrect)
+if(moves2$CurrentCorrect==moves2$BestMove$pccorrect){stop=TRUE}
+XCURR=rank(replace(XCURR,moves2$BestMove$Case,moves2$BestMove$NewX))
+YCURR=rank(replace(YCURR,moves2$BestMove$Case,moves2$BestMove$NewY))
+	}
+#update final POSAC results
+X=XCURR
+Y=YCURR
+}
+##END OF GREEDY CONTINUATION
 
-return(list(Criteria=crits,X=X,Y=Y,Patterns=pattern,patmat=patmat,freqs=freqs,tidyframe=tidyframe))}
+X <- rank(X,ties.method="first")
+Y <- rank(Y,ties.method="last")
+crits = realcriteria(c(X, Y), gam, Freq = freqs)
 
+rescX = round(100 * (X - min(X))/(max(X) - min(X)))
+rescY = round(100 * (Y - min(Y))/(max(Y) - min(Y)))
+tidyframe = data.frame(Structuple = pattern, freqs = freqs, 
+                       X = X, Y = Y, rescX = rescX, rescY = rescY, J = rescX + 
+                         rescY, L = 100 + rescX - rescY)
+
+#mu correlation matrix between original patterns and discovered dimensions
+mumatrix=matrix(mapply(function(i,j) tryCatch(mu(patmat[,i],tidyframe[,j]),error=function(e) NA)
+	,rep(1:ncol(patmat),4)
+	,rep(5:8,each=ncol(patmat))),nrow=ncol(patmat))
+rownames(mumatrix)=colnames(patmat)
+colnames(mumatrix)=names(tidyframe)[5:8]
+mumatrix
+
+return(list(Criteria = crits, X = X, Y = Y, Patterns = pattern
+		,patmat = patmat, freqs = freqs
+		,tidyframe = tidyframe,mumatrix=mumatrix))
+	}
 
