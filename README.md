@@ -25,6 +25,17 @@ biocLite("Rgraphviz")
 
 install.packages("ggplot2","hasseDiagram","foreach")
 
+This package can then be installed using the devtools package using the commands below.
+
+
+
+library(devtools)
+
+
+
+install_github("CambridgeAssessmentResearch/POSAC")
+
+
 ## License
 
 The MIT License (MIT)
