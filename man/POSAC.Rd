@@ -4,12 +4,14 @@
 \alias{POSAC}
 \title{Partial Order Scalogram Analysis with Base Coordinates.}
 \usage{
-POSAC(patmat, freqs)
+POSAC(patmat, freqs, greedy = FALSE)
 }
 \arguments{
 \item{patmat}{A matrix of patterns of values across. Each row of the matrix should represents a distinct pattern with no duplicates. The columns are the variables defining the patterns.}
 
 \item{freqs}{A vector of frequencies of each pattern. This should have the same length as nrow(patmat).}
+
+\item{greedy}{Logical value denoting whether optimisation method should finish with a greedy search through all possible movements of each point in order to improve the number of pairs of patterns that are correctly positioned. Setting this to true will make the process somewhat slower. The default value is FALSE.}
 }
 \value{
 The function returns a list with the following elements:
@@ -21,6 +23,7 @@ The function returns a list with the following elements:
   \item{patmat}{The pattern matrix used in analysis to begin with.}
   \item{freqs}{The frequency with which in pattern occurs.}
   \item{tidyframe}{A single data frame containing the structuples(patterns), frequencies, X, Y, rescaled X and Y to be between a 0 and 100, J (=rescaled X+rescaled Y)and L(=100+rescaled X-rescaled Y).}
+  \item{mumatrix}{Matrix of monotonicity coefficients between each of the original variables and the resulting rescaled X, Y, J and L.}
 }
 }
 \description{

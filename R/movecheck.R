@@ -58,39 +58,67 @@
 
 movecheck=function(X,Y,patmat,freqs){
   
+	
   if(!(length(X)==length(Y) & length(X)==length(freqs) & length(X)==nrow(patmat))){
     print("length(X), length(Y), length(freqs), and nrow(patmat) must all be equal")
     return(NULL)}
-  
-  gam<-gamfunc(patmat)
-  
-  crits=realcriteria(c(X,Y),gam,Freq=freqs,printwarn=FALSE)$overall$pccorrect
-  
-  possXs=c(min(X)-1,sort(unique(X)),max(X)+1)
-  possXs=0.5*(possXs[2:length(possXs)]+possXs[1:(length(possXs)-1)])
-  possYs=c(min(Y)-1,sort(unique(Y)),max(Y)+1)
-  possYs=0.5*(possYs[2:length(possYs)]+possYs[1:(length(possYs)-1)])
-  
-  possmoves=expand.grid(1:length(X),possXs,possYs)
 
-  func1=function(row,XA,YA,gam,freqs){
-    X1=replace(XA,possmoves[row,1],possmoves[row,2])
-    Y1=replace(YA,possmoves[row,1],possmoves[row,3])
-    realcriteria(c(X1,Y1),gam=gam,Freq=freqs,printwarn=FALSE)$overall$pccorrect
-  }
-  #func1(1,XA=X,YA=Y,gam=gam,freqs=freqs)
-  
-  moveresults=sapply(1:nrow(possmoves),func1,XA=X,YA=Y,gam=gam,freqs=freqs)
-  
-  possmoves$pccorrect=moveresults
-  possmoves=possmoves[order(-moveresults),]
-  head(possmoves)
-  names(possmoves)[1:3]=c("Case","NewX","NewY")
-  BestMove=possmoves[1,]
-  CurrentCorrect=crits
-  BestMove$OldX=X[BestMove[1,1]]
-  BestMove$OldY=Y[BestMove[1,1]]
-  
-  return(list(CurrentCorrect=CurrentCorrect,BestMove=BestMove))}
+    gam <- gamfunc(patmat)
+    #data frame of current positions
+    d0=data.frame(id=1:length(X),X=X,Y=Y,freqs=freqs)
+    #possible moves
+    possXs = c(min(X) - 1, sort(unique(X)), max(X) + 1)
+    possXs = 0.5 * (possXs[2:length(possXs)] + possXs[1:(length(possXs) - 
+        1)])
+    possYs = c(min(Y) - 1, sort(unique(Y)), max(Y) + 1)
+    possYs = 0.5 * (possYs[2:length(possYs)] + possYs[1:(length(possYs) - 
+        1)])
+
+
+#subroutine for looking at each individual case (assuming X,Y,d0, possXs, possYs and gam all exist)
+movesubcase=function(case){
+d1=d0[d0$id!=case,]
+d1$gam1=as.vector(gam[-case,case])
+d1$X1=X[case]
+d1$Y1=Y[case]
+d1$freq1=freqs[case]
+d1$gam0=(sign(d1$X-d1$X1)+sign(d1$Y-d1$Y1))/2
+d1$gam0=sign(d1$gam0)#(so that different between -1 and +1 is same as between -1 and 0)
+currerr=sum(d1$freqs*d1$freq1*(d1$gam1-d1$gam0)^2)
+moves=data.frame(id=case,currerr=currerr,besterr=currerr
+	,OldX=X[case],OldY=Y[case]
+	,NewX=X[case],NewY=Y[case])
+if(currerr>0){
+d1=merge(d1,data.frame(expand.grid(possXs,possYs)))
+d1$gam2=(sign(d1$X-d1$Var1)+sign(d1$Y-d1$Var2))/2
+d1$gam2=sign(d1$gam2)#(so that different between -1 and +1 is same as between -1 and 0)
+d1$err=d1$freqs*d1$freq1*(d1$gam1-d1$gam2)^2
+dagg=aggregate(d1[,"err"],by=list(Var1=d1$Var1,Var2=d1$Var2),sum)
+bestrow=which.min(dagg$x)[1]
+moves$besterr=dagg$x[bestrow]
+moves$NewX=dagg$Var1[bestrow]
+moves$NewY=dagg$Var2[bestrow]
+}
+return(moves)
+}
+
+temp1=lapply(1:length(X),movesubcase)
+allmoves=do.call(rbind.data.frame,temp1)
+allmoves$imp=allmoves$currerr-allmoves$besterr
+bestmove=which.max(allmoves$imp)
+
+X1=X
+Y1=Y
+X1[bestmove]=allmoves$NewX[bestmove]
+Y1[bestmove]=allmoves$NewY[bestmove]
+
+return(list(CurrentCorrect=realcriteria(c(X, Y), gam = gam, Freq = freqs, printwarn = FALSE)$overall$pccorrect
+	,BestMove=data.frame(Case=bestmove
+		,NewX=allmoves$NewX[bestmove]
+		,NewY=allmoves$NewY[bestmove]
+		,pccorrect=realcriteria(c(X1, Y1), gam = gam, Freq = freqs, printwarn = FALSE)$overall$pccorrect
+		,OldX=allmoves$OldX[bestmove]
+		,OldY=allmoves$OldY[bestmove])))
+	}
 
 
