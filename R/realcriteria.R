@@ -1,6 +1,6 @@
 #' Properly calculated POSAC criteria.
 #'
-#' This function counts (weighted) number of pairs that are in the correct order in terms of X and Y (realU merely calculates whether differences have been labelled as comparable or incomparable correctly).
+#' This function counts (weighted) number of pairs that are in the correct order in terms of X and Y.
 #' @param XY A concatenated vector of the the x-coordinates and y-coordinates for each combination of values for the covariates (i.e. should have length 2n if n if the number of combinations we are interested in).
 #' @param gam The matrix of gamma values.
 #' @param Freq The number of observations with each combination of covariate values.

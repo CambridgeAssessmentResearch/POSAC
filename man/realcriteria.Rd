@@ -16,7 +16,7 @@ realcriteria(XY, gam, Freq, printwarn = TRUE)
 \item{printwarn}{Logical input denoting whether the function should print a message about the number of equal pairs not counted in calculations.}
 }
 \description{
-This function counts (weighted) number of pairs that are in the correct order in terms of X and Y (realU merely calculates whether differences have been labelled as comparable or incomparable correctly).
+This function counts (weighted) number of pairs that are in the correct order in terms of X and Y.
 }
 \examples{
 posac2=POSAC(CRASdata[,1:5],CRASdata[,6])
